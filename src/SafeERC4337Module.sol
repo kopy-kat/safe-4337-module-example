@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "@aa/interfaces/UserOperation.sol";
+import "./interfaces/ISafe.sol";
 
 contract SafeERC4337Module {
     bytes32 private constant DOMAIN_SEPARATOR_TYPEHASH =
@@ -105,21 +106,7 @@ contract SafeERC4337Module {
         UserOperation calldata userOp,
         bytes32 userOpHash
     ) internal {
-        // get operation target from userOp
-        (, address target, , , , ) = abi.decode(
-            userOp.callData[4:],
-            (address, address, uint256, bytes, uint8, uint256)
-        );
-
-        // get validators for target
-        address[] memory validators = getValidators(target);
-        uint256 length = validators.length;
-        // iterate over all validators and call validate function
-        for (uint256 i; i < length; ++i) {
-            console2.log("calling validator", validators[i]);
-            // TODO: verify return == 0
-            IValidator(validators[i]).validateUserOp(userOp, userOpHash);
-        }
+        // TODO: validate signatures
     }
 
     function checkAndExecTransactionFromModule(
@@ -136,14 +123,13 @@ contract SafeERC4337Module {
         ExecutionStatus memory status = hashes[executionHash];
         require(status.approved && !status.executed, "Unexpected status");
         hashes[executionHash].executed = true;
-
-        // check if target is an installed plugin
-
-        if (isPluginEnabled(target)) {
-            execPlugin(target, value, data);
-        } else {
-            _execTransationOnSmartAccount(smartAccount, target, value, data);
-        }
+        bool success = ISafe(smartAccount).execTransactionFromModule(
+            target,
+            value,
+            data,
+            operation
+        );
+        require(success, "Module transaction failed");
     }
 
     function validateReplayProtection(UserOperation calldata userOp) internal {
@@ -160,17 +146,7 @@ contract SafeERC4337Module {
             );
     }
 
-    function _prefundEntrypoint(
-        address safe,
-        address entryPoint,
-        uint256 requiredPrefund
-    ) internal virtual;
-
-    function _accountAddress() internal virtual override returns (address) {
-        return owner();
-    }
-
-    function _msgSender() internal pure override returns (address sender) {
+    function _msgSender() internal pure returns (address sender) {
         // The assembly code is more direct than the Solidity version using `abi.decode`.
         // solhint-disable-next-line no-inline-assembly
         assembly {
@@ -182,7 +158,7 @@ contract SafeERC4337Module {
         address safe,
         address entryPoint,
         uint256 requiredPrefund
-    ) internal virtual override {
+    ) internal {
         ISafe(safe).execTransactionFromModule(
             entryPoint,
             requiredPrefund,
