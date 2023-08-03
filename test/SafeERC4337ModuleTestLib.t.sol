@@ -9,9 +9,11 @@ import "@safe/proxies/SafeProxy.sol";
 
 import "@aa/core/EntryPoint.sol";
 
+import "../src/utils/InitModule.sol";
+
 import {SafeERC4337Module} from "../src/SafeERC4337Module.sol";
 
-contract SafeERC4337ModuleTest is Test {
+contract SafeERC4337ModuleTestLib is Test {
     // Singletons
     Safe internal singleton;
 
@@ -23,6 +25,9 @@ contract SafeERC4337ModuleTest is Test {
 
     // ERC4337 Entrypoint
     EntryPoint internal entrypoint;
+
+    // Init 4337 Contract used to set up the Safe
+    InitModule internal initModule;
 
     // Safe ERC4337 Module
     SafeERC4337Module internal safe4337Module;
@@ -38,7 +43,8 @@ contract SafeERC4337ModuleTest is Test {
 
         entrypoint = new EntryPoint();
 
-        // Safe ERC4337 Module
+        initModule = new InitModule();
+
         safe4337Module = new SafeERC4337Module(address(entrypoint));
     }
 
@@ -107,13 +113,11 @@ contract SafeERC4337ModuleTest is Test {
         // Initial owner of safe
         address safeOwner = vm.addr(privateKey);
 
-        // Add ERC4337 module on Safe deployment
-        InitialModule[] memory modules = new InitialModule[](1);
-        modules[0] = InitialModule({
-            moduleAddress: address(safe4337Module),
-            salt: 0,
-            initializer: bytes("")
-        });
+        // Calldata sent to init4337Safe
+        bytes memory initModuleCalldata = abi.encodeWithSelector(
+            InitModule.initialise.selector,
+            address(safe4337Module)
+        );
 
         // Initial owners of Safe
         address[] memory owners = new address[](1);
@@ -123,8 +127,8 @@ contract SafeERC4337ModuleTest is Test {
                 Safe.setup.selector,
                 owners, // owners
                 1, // threshold
-                address(0), // init module
-                bytes(""), // init module calldata
+                address(initModule), // init module
+                initModuleCalldata, // init module calldata
                 safe4337Module, // fallbackHandler
                 address(0), // payment token
                 0, // payment

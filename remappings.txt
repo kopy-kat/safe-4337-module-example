@@ -1,3 +1,5 @@
 forge-std/=lib/forge-std/src/
 @safe/=lib/safe-contracts/contracts/
 @aa=lib/account-abstraction/contracts/
+@openzeppelin/contracts-upgradeable/=lib/openzeppelin/openzeppelin-contracts-upgradeable/contracts/
+@openzeppelin/contracts/=lib/openzeppelin/openzeppelin-contracts/contracts/
